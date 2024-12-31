@@ -1,0 +1,12 @@
+{
+  "name": "todo-list-app",
+  "version": "1.0.0",
+  "scripts": {
+    "init": "node scripts/init.js",
+    "validate": "node scripts/validate.js",
+    "precommit": "npm run validate"
+  },
+  "devDependencies": {
+    "chalk": "^4.1.2"
+  }
+}

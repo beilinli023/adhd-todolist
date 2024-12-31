@@ -1,0 +1,6 @@
+# 防止在错误目录下创建的文件
+/scripts/
+node_modules/
+.env
+.DS_Store
+dist/
