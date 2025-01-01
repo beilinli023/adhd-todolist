@@ -6,17 +6,18 @@ export type TaskPriority = 'low' | 'medium' | 'high';
 
 // 任务类型
 export interface Task {
-  id: string;
+  _id: string;
   title: string;
   description?: string;
-  status: TaskStatus;
-  priority: TaskPriority;
   dueDate?: string;
+  priority: TaskPriority;
+  status: TaskStatus;
+  user: string;
+  order: number;
   tags?: string[];
   category?: string;
   createdAt: string;
   updatedAt: string;
-  user: string;
 }
 
 // 创建任务请求
@@ -32,6 +33,7 @@ export interface CreateTaskDTO {
 // 更新任务请求
 export interface UpdateTaskDTO extends Partial<CreateTaskDTO> {
   status?: TaskStatus;
+  dueDate?: string;
 }
 
 // 任务查询参数
@@ -39,14 +41,10 @@ export interface TaskQueryParams {
   status?: TaskStatus;
   priority?: TaskPriority;
   search?: string;
-  category?: string;
-  tags?: string[];
-  startDate?: string;
-  endDate?: string;
-  page?: number;
-  limit?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  page?: number;
+  limit?: number;
 }
 
 // 批量操作请求
@@ -64,4 +62,10 @@ export interface TaskListResponse {
   total: number;
   page: number;
   totalPages: number;
+}
+
+export interface TaskFilters {
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  search?: string;
 } 

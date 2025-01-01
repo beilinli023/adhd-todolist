@@ -2,7 +2,6 @@ import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { TaskProvider } from '../contexts/TaskContext';
 import TaskList from '../components/task/TaskList';
-import CreateTask from '../components/task/CreateTask';
 
 const Dashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -31,9 +30,8 @@ const Dashboard: React.FC = () => {
 
         <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
           <div className="px-4 sm:px-0">
-            <div className="flex justify-between items-center mb-6">
+            <div className="mb-6">
               <h2 className="text-2xl font-bold text-gray-900">我的任务</h2>
-              <CreateTask />
             </div>
             <TaskList />
           </div>

@@ -1,45 +1,56 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { User } from '../models/User';
-import { toUserDTO } from '../types/user';
+import { JWT_SECRET } from '../config';
 
-export const auth = async (req: Request, res: Response, next: NextFunction) => {
+interface JwtPayload {
+  userId: string;
+}
+
+// 扩展 Request 类型以包含用户信息
+declare global {
+  namespace Express {
+    interface Request {
+      user?: {
+        id: string;
+      };
+    }
+  }
+}
+
+export const authenticateToken = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
 
     if (!token) {
       return res.status(401).json({
         success: false,
         error: {
-          code: 'UNAUTHORIZED',
-          message: '请先登录',
-        },
+          message: '未提供认证令牌'
+        }
       });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as { userId: string };
-    const user = await User.findById(decoded.userId);
-
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: '用户不存在',
-        },
-      });
+    if (!JWT_SECRET) {
+      throw new Error('JWT_SECRET 未定义');
     }
 
-    // 使用转换函数转换为 DTO
-    req.user = toUserDTO(user);
+    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
+    req.user = {
+      id: decoded.userId
+    };
     next();
   } catch (error) {
-    res.status(401).json({
+    console.error('认证失败:', error);
+    return res.status(403).json({
       success: false,
       error: {
-        code: 'UNAUTHORIZED',
-        message: '无效的认证令牌',
-      },
+        message: '无效的认证令牌'
+      }
     });
   }
 }; 

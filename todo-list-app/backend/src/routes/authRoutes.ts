@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { register, login, getCurrentUser } from '../controllers/authController';
-import { auth } from '../middleware/auth';
+import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
 
@@ -11,6 +11,6 @@ router.post('/register', register);
 router.post('/login', login);
 
 // 获取当前用户信息
-router.get('/me', auth, getCurrentUser);
+router.get('/me', authenticateToken, getCurrentUser);
 
 export default router; 

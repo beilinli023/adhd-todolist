@@ -1,35 +1,33 @@
-import { Router } from 'express';
-import { auth } from '../middleware/auth';
+import express from 'express';
+import { authenticateToken } from '../middleware/auth';
 import {
   createTask,
   getTasks,
-  getTaskById,
+  getTask,
   updateTask,
   deleteTask,
-  batchOperation
+  batchOperation,
+  updateTaskOrder,
+  updateTasksOrder
 } from '../controllers/taskController';
 
-const router = Router();
+const router = express.Router();
 
-// 所有路由都需要认证
-router.use('/', auth);
+// 应用认证中间件到所有路由
+router.use(authenticateToken);
 
-// 创建任务
+// 基本的 CRUD 路由
 router.post('/', createTask);
-
-// 获取任务列表
 router.get('/', getTasks);
+router.get('/:id', getTask);
+router.put('/:id', updateTask);
+router.delete('/:id', deleteTask);
 
-// 批量操作
+// 批量操作路由
 router.post('/batch', batchOperation);
 
-// 获取单个任务
-router.get('/:id', getTaskById);
-
-// 更新任务
-router.put('/:id', updateTask);
-
-// 删除任务
-router.delete('/:id', deleteTask);
+// 任务排序路由
+router.patch('/:taskId/order', updateTaskOrder);
+router.patch('/batch/order', updateTasksOrder);
 
 export default router; 

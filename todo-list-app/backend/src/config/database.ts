@@ -7,7 +7,13 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/todo-l
 
 export const connectDB = async (): Promise<void> => {
   try {
-    await mongoose.connect(MONGODB_URI);
+    await mongoose.connect(MONGODB_URI, {
+      authSource: 'admin',
+      auth: {
+        username: 'admin',
+        password: 'password123'
+      }
+    });
     console.log('MongoDB connected successfully');
   } catch (error) {
     console.error('MongoDB connection error:', error);

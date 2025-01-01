@@ -1,7 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-// User类型被AuthState接口间接使用，用于定义user字段的类型
-// 虽然TypeScript显示未使用，但实际通过AuthState在整个认证上下文中都在使用
-import type { User, AuthState } from '../types/auth';
+import type { AuthState } from '../types/auth';
 import { authService } from '../services/auth';
 
 interface AuthContextType extends AuthState {

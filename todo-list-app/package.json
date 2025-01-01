@@ -8,6 +8,7 @@
     "dev:backend": "cd backend && npm run dev"
   },
   "devDependencies": {
+    "@types/lodash": "^4.17.13",
     "concurrently": "^9.1.2"
   },
   "main": "index.js",

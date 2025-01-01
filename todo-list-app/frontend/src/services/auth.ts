@@ -6,7 +6,7 @@ export const authService = {
   async register(data: RegisterRequest) {
     try {
       console.log('发送注册请求:', data);
-      const response = await api.post<AuthResponse>('auth/register', data);
+      const response = await api.post<AuthResponse>('/api/auth/register', data);
       console.log('注册响应:', response.data);
       
       if (!response.data.success || !response.data.data) {
@@ -23,7 +23,7 @@ export const authService = {
   async login(data: LoginRequest) {
     try {
       console.log('发送登录请求:', data);
-      const response = await api.post<AuthResponse>('auth/login', data);
+      const response = await api.post<AuthResponse>('/api/auth/login', data);
       console.log('登录响应:', response.data);
       
       if (!response.data.success || !response.data.data) {
@@ -39,7 +39,7 @@ export const authService = {
   // 获取当前用户信息
   async getCurrentUser() {
     try {
-      const response = await api.get<AuthResponse>('auth/me');
+      const response = await api.get<AuthResponse>('/api/auth/me');
       console.log('获取用户信息响应:', response.data);
       
       if (!response.data.success || !response.data.data) {

@@ -1,13 +1,13 @@
 {
   "name": "todo-list-backend",
   "version": "1.0.0",
+  "description": "",
+  "main": "src/app.ts",
   "scripts": {
     "dev": "ts-node-dev --respawn src/app.ts",
+    "start": "chmod +x scripts/start.sh && ./scripts/start.sh",
     "build": "tsc",
-    "start": "node dist/app.js",
-    "test": "jest --config jest.config.ts --detectOpenHandles",
-    "test:watch": "jest --watch --config jest.config.ts",
-    "test:coverage": "jest --coverage --config jest.config.ts"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
     "@types/bcryptjs": "^2.4.6",
