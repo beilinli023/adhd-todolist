@@ -2,17 +2,17 @@
   "name": "todo-list-app",
   "version": "1.0.0",
   "scripts": {
-    "preinstall": "node scripts/checkWorkDir.js",
-    "prepare": "node scripts/checkWorkDir.js",
-    "prestart": "node scripts/checkWorkDir.js",
-    "predev": "node scripts/checkWorkDir.js",
-    "bootstrap": "node scripts/bootstrap.js",
-    "init": "node scripts/init.js",
-    "validate": "node scripts/validate.js",
+    "predev": "node scripts/killPort.js",
+    "dev": "concurrently \"cd frontend && npm run dev\" \"cd backend && npm run dev\"",
     "dev:frontend": "cd frontend && npm run dev",
     "dev:backend": "cd backend && npm run dev"
   },
   "devDependencies": {
-    "chalk": "^4.1.2"
-  }
+    "concurrently": "^9.1.2"
+  },
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
 }
