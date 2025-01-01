@@ -1,26 +1,36 @@
 import type { Request, Response } from 'express-serve-static-core';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { User, IUser } from '../models/User';
-import { RegisterDTO, LoginDTO, AuthResponse } from '../types/auth';
-
-interface AuthRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    name: string;
-    preferences: Record<string, any>;
-  };
-}
+import { User } from '../models/User';
+import { RegisterDTO, LoginDTO, toUserDTO } from '../types/user';
 
 export const register = async (req: Request<{}, {}, RegisterDTO>, res: Response) => {
   try {
+    console.log('收到注册请求:', req.body);
     const { email, password, name } = req.body;
+
+    // 验证必填字段
+    if (!email || !password || !name) {
+      console.log('注册验证失败: 缺少必填字段');
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: '邮箱、密码和用户名为必填项',
+        },
+      });
+    }
 
     // 检查邮箱是否已存在
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ error: '该邮箱已被注册' });
+      console.log('注册失败: 邮箱已存在', email);
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: '该邮箱已被注册',
+        },
+      });
     }
 
     // 加密密码
@@ -39,27 +49,33 @@ export const register = async (req: Request<{}, {}, RegisterDTO>, res: Response)
     });
 
     await user.save();
+    console.log('用户创建成功:', user._id);
 
     // 生成 JWT token
     const token = jwt.sign(
-      { userId: user._id, email: user.email },
-      process.env.JWT_SECRET!,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
+      { userId: user._id },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '1h' }
     );
 
-    const response: AuthResponse = {
+    const responseData = {
       token,
-      user: {
-        id: user._id.toString(),
-        email: user.email,
-        name: user.name,
-        preferences: user.preferences,
-      },
+      user: toUserDTO(user),
     };
+    console.log('注册成功，返回数据:', responseData);
 
-    res.status(201).json(response);
+    res.status(201).json({
+      success: true,
+      data: responseData,
+    });
   } catch (error) {
-    res.status(500).json({ error: '注册失败，请稍后重试' });
+    console.error('注册过程中发生错误:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: '注册失败，请稍后重试',
+      },
+    });
   }
 };
 
@@ -67,16 +83,37 @@ export const login = async (req: Request<{}, {}, LoginDTO>, res: Response) => {
   try {
     const { email, password } = req.body;
 
+    // 验证必填字段
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: '邮箱和密码为必填项',
+        },
+      });
+    }
+
     // 查找用户
-    const user = await User.findOne({ email }) as IUser | null;
+    const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ error: '邮箱或密码错误' });
+      return res.status(401).json({
+        success: false,
+        error: {
+          message: '邮箱或密码错误',
+        },
+      });
     }
 
     // 验证密码
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(401).json({ error: '邮箱或密码错误' });
+      return res.status(401).json({
+        success: false,
+        error: {
+          message: '邮箱或密码错误',
+        },
+      });
     }
 
     // 更新最后登录时间
@@ -85,40 +122,51 @@ export const login = async (req: Request<{}, {}, LoginDTO>, res: Response) => {
 
     // 生成 JWT token
     const token = jwt.sign(
-      { userId: user._id, email: user.email },
-      process.env.JWT_SECRET!,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
+      { userId: user._id },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '1h' }
     );
 
-    const response: AuthResponse = {
-      token,
-      user: {
-        id: user._id.toString(),
-        email: user.email,
-        name: user.name,
-        preferences: user.preferences,
+    res.json({
+      success: true,
+      data: {
+        token,
+        user: toUserDTO(user),
       },
-    };
-
-    res.json(response);
+    });
   } catch (error) {
-    res.status(500).json({ error: '登录失败，请稍后重试' });
+    res.status(500).json({
+      success: false,
+      error: {
+        message: '登录失败，请稍后重试',
+      },
+    });
   }
 };
 
-export const getCurrentUser = async (req: AuthRequest, res: Response) => {
+export const getCurrentUser = async (req: Request, res: Response) => {
   try {
     const user = req.user;
     if (!user) {
-      return res.status(401).json({ error: '未授权访问' });
+      return res.status(401).json({
+        success: false,
+        error: {
+          code: 'UNAUTHORIZED',
+          message: '未授权访问',
+        },
+      });
     }
+
     res.json({
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      preferences: user.preferences,
+      success: true,
+      data: user,
     });
   } catch (error) {
-    res.status(500).json({ error: '获取用户信息失败' });
+    res.status(500).json({
+      success: false,
+      error: {
+        message: '获取用户信息失败',
+      },
+    });
   }
 }; 

@@ -2,14 +2,28 @@ import express = require('express');
 import type { Request, Response, NextFunction, RequestHandler, ErrorRequestHandler } from 'express-serve-static-core';
 import cors from 'cors';
 import morgan from 'morgan';
+import { connectDB } from './config/database';
 import { requestId } from './middleware/requestId';
 import taskRoutes from './routes/taskRoutes';
 import authRoutes from './routes/authRoutes';
 
+// 初始化 Express 应用
 export const app = express();
 
+// 连接数据库
+connectDB().catch(console.error);
+
+// CORS 配置
+const corsOptions = {
+  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
 // 中间件
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(morgan('dev'));
 app.use(requestId);

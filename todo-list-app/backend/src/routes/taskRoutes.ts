@@ -5,10 +5,8 @@ import {
   getTasks,
   getTaskById,
   updateTask,
-  updateTaskStatus,
   deleteTask,
-  batchUpdateTaskStatus,
-  batchDeleteTasks
+  batchOperation
 } from '../controllers/taskController';
 
 const router = Router();
@@ -22,20 +20,14 @@ router.post('/', createTask);
 // 获取任务列表
 router.get('/', getTasks);
 
-// 批量更新任务状态
-router.patch('/batch/status', batchUpdateTaskStatus);
-
-// 批量删除任务
-router.delete('/batch', batchDeleteTasks);
+// 批量操作
+router.post('/batch', batchOperation);
 
 // 获取单个任务
 router.get('/:id', getTaskById);
 
 // 更新任务
 router.put('/:id', updateTask);
-
-// 更新任务状态
-router.patch('/:id/status', updateTaskStatus);
 
 // 删除任务
 router.delete('/:id', deleteTask);

@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { TaskStatus, TaskPriority } from '../types/task';
 
 // 基础验证规则
 const titleSchema = z
@@ -14,7 +13,7 @@ const descriptionSchema = z
   .trim()
   .optional();
 
-const prioritySchema = z.nativeEnum(TaskPriority);
+const prioritySchema = z.enum(['low', 'medium', 'high']);
 
 const dueDateSchema = z
   .string()
@@ -33,7 +32,7 @@ const categorySchema = z
   .trim()
   .optional();
 
-const statusSchema = z.nativeEnum(TaskStatus);
+const statusSchema = z.enum(['pending', 'in_progress', 'completed', 'archived']);
 
 // 创建任务验证 Schema
 export const createTaskSchema = z.object({

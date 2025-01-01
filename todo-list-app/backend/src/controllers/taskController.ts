@@ -1,19 +1,10 @@
 import type { Request, Response, NextFunction, RequestHandler } from 'express-serve-static-core';
 import { Task } from '../models/Task';
-import { CreateTaskDTO, UpdateTaskDTO, TaskQueryParams } from '../types/task';
-
-interface AuthenticatedRequest extends Request {
-  id: string;
-  user: {
-    id: string;
-    email: string;
-    name: string;
-    preferences: Record<string, any>;
-  };
-}
+import { CreateTaskDTO, UpdateTaskDTO, TaskQueryParams, BatchOperationDTO } from '../types/task';
+import mongoose from 'mongoose';
 
 // 创建任务
-export const createTask: RequestHandler = async (req, res, next) => {
+export const createTask: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const taskData: CreateTaskDTO = req.body;
     
@@ -25,8 +16,6 @@ export const createTask: RequestHandler = async (req, res, next) => {
           code: 'VALIDATION_ERROR',
           message: '任务标题是必需的',
         },
-        timestamp: Date.now(),
-        requestId: req.id,
       });
     }
 
@@ -40,11 +29,17 @@ export const createTask: RequestHandler = async (req, res, next) => {
     res.status(201).json({
       success: true,
       data: savedTask,
-      message: '任务创建成功',
-      timestamp: Date.now(),
-      requestId: req.id,
     });
   } catch (error) {
+    if (error instanceof mongoose.Error.ValidationError) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: error.message,
+        },
+      });
+    }
     next(error);
   }
 };
@@ -73,7 +68,7 @@ export const getTasks: RequestHandler = async (req, res, next) => {
     if (status) query.status = status;
     if (priority) query.priority = priority;
     if (category) query.category = category;
-    if (tags?.length) query.tags = { $in: tags };
+    if (tags) query.tags = { $in: Array.isArray(tags) ? tags : [tags] };
     if (search) {
       query.$or = [
         { title: { $regex: search, $options: 'i' } },
@@ -87,29 +82,27 @@ export const getTasks: RequestHandler = async (req, res, next) => {
     }
 
     // 计算分页
-    const skip = (page - 1) * limit;
+    const skip = (Number(page) - 1) * Number(limit);
     
     // 执行查询
     const [tasks, total] = await Promise.all([
       Task.find(query)
         .sort({ [sortBy]: sortOrder === 'desc' ? -1 : 1 })
         .skip(skip)
-        .limit(limit),
+        .limit(Number(limit)),
       Task.countDocuments(query),
     ]);
+
+    const totalPages = Math.ceil(total / Number(limit));
 
     res.json({
       success: true,
       data: {
-        items: tasks,
+        tasks,
         total,
-        page,
-        limit,
-        hasMore: skip + tasks.length < total,
+        page: Number(page),
+        totalPages,
       },
-      message: '获取任务列表成功',
-      timestamp: Date.now(),
-      requestId: req.id,
     });
   } catch (error) {
     next(error);
@@ -119,6 +112,17 @@ export const getTasks: RequestHandler = async (req, res, next) => {
 // 获取单个任务
 export const getTaskById: RequestHandler = async (req, res, next) => {
   try {
+    // 验证 ID 格式
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_ID',
+          message: '无效的任务ID',
+        },
+      });
+    }
+
     const task = await Task.findOne({
       _id: req.params.id,
       user: req.user?.id,
@@ -128,20 +132,15 @@ export const getTaskById: RequestHandler = async (req, res, next) => {
       return res.status(404).json({
         success: false,
         error: {
-          code: 'TASK_NOT_FOUND',
+          code: 'NOT_FOUND',
           message: '任务不存在',
         },
-        timestamp: Date.now(),
-        requestId: req.id,
       });
     }
 
     res.json({
       success: true,
       data: task,
-      message: '获取任务成功',
-      timestamp: Date.now(),
-      requestId: req.id,
     });
   } catch (error) {
     next(error);
@@ -151,76 +150,73 @@ export const getTaskById: RequestHandler = async (req, res, next) => {
 // 更新任务
 export const updateTask: RequestHandler = async (req, res, next) => {
   try {
+    // 验证 ID 格式
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_ID',
+          message: '无效的任务ID',
+        },
+      });
+    }
+
     const updateData: UpdateTaskDTO = req.body;
+
+    // 验证更新数据
+    if (updateData.priority && !['low', 'medium', 'high'].includes(updateData.priority)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: '无效的优先级值',
+        },
+      });
+    }
+
+    if (updateData.status && !['pending', 'in_progress', 'completed', 'archived'].includes(updateData.status)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: '无效的状态值',
+        },
+      });
+    }
+
     const task = await Task.findOneAndUpdate(
       {
         _id: req.params.id,
         user: req.user?.id,
       },
       updateData,
-      { new: true }
+      { new: true, runValidators: true }
     );
 
     if (!task) {
       return res.status(404).json({
         success: false,
         error: {
-          code: 'TASK_NOT_FOUND',
+          code: 'NOT_FOUND',
           message: '任务不存在',
         },
-        timestamp: Date.now(),
-        requestId: req.id,
       });
     }
 
     res.json({
       success: true,
       data: task,
-      message: '任务更新成功',
-      timestamp: Date.now(),
-      requestId: req.id,
     });
   } catch (error) {
-    next(error);
-  }
-};
-
-// 更新任务状态
-export const updateTaskStatus: RequestHandler = async (req, res, next) => {
-  try {
-    const { status } = req.body;
-    const task = await Task.findOneAndUpdate(
-      {
-        _id: req.params.id,
-        user: req.user?.id,
-      },
-      {
-        status,
-        completedAt: status === 'completed' ? new Date() : null,
-      },
-      { new: true }
-    );
-
-    if (!task) {
-      return res.status(404).json({
+    if (error instanceof mongoose.Error.ValidationError) {
+      return res.status(400).json({
         success: false,
         error: {
-          code: 'TASK_NOT_FOUND',
-          message: '任务不存在',
+          code: 'VALIDATION_ERROR',
+          message: error.message,
         },
-        timestamp: Date.now(),
-        requestId: req.id,
       });
     }
-
-    res.json({
-      success: true,
-      data: task,
-      message: '任务状态更新成功',
-      timestamp: Date.now(),
-      requestId: req.id,
-    });
-  } catch (error) {
     next(error);
   }
 };
@@ -228,6 +224,17 @@ export const updateTaskStatus: RequestHandler = async (req, res, next) => {
 // 删除任务
 export const deleteTask: RequestHandler = async (req, res, next) => {
   try {
+    // 验证 ID 格式
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_ID',
+          message: '无效的任务ID',
+        },
+      });
+    }
+
     const task = await Task.findOneAndDelete({
       _id: req.params.id,
       user: req.user?.id,
@@ -237,92 +244,114 @@ export const deleteTask: RequestHandler = async (req, res, next) => {
       return res.status(404).json({
         success: false,
         error: {
-          code: 'TASK_NOT_FOUND',
+          code: 'NOT_FOUND',
           message: '任务不存在',
         },
-        timestamp: Date.now(),
-        requestId: req.id,
       });
     }
 
     res.json({
       success: true,
       data: null,
-      message: '任务删除成功',
-      timestamp: Date.now(),
-      requestId: req.id,
     });
   } catch (error) {
     next(error);
   }
 };
 
-// 批量更新任务状态
-export const batchUpdateTaskStatus: RequestHandler = async (req, res, next) => {
+// 批量操作
+export const batchOperation: RequestHandler = async (req, res, next) => {
   try {
-    const { ids, status } = req.body;
+    const { taskIds, action, data }: BatchOperationDTO = req.body;
 
-    // 验证所有 ID 是否有效
-    if (!Array.isArray(ids) || !ids.length || !ids.every((id: string) => /^[0-9a-fA-F]{24}$/.test(id))) {
+    // 验证必填参数
+    if (!taskIds || !Array.isArray(taskIds) || !action) {
       return res.status(400).json({
         success: false,
         error: {
           code: 'VALIDATION_ERROR',
-          message: '无效的任务ID列表',
+          message: '无效的请求参数',
         },
-        timestamp: Date.now(),
-        requestId: req.id,
       });
     }
 
-    const result = await Task.updateMany(
-      {
-        _id: { $in: ids },
-        user: req.user?.id,
-      },
-      {
-        $set: {
-          status,
-          completedAt: status === 'completed' ? new Date() : null,
+    // 验证任务ID格式
+    if (!taskIds.every(id => mongoose.Types.ObjectId.isValid(id))) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: '存在无效的任务ID',
+        },
+      });
+    }
+
+    let result;
+
+    switch (action) {
+      case 'update_status':
+        if (!data?.status || !['pending', 'in_progress', 'completed', 'archived'].includes(data.status)) {
+          return res.status(400).json({
+            success: false,
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: '无效的状态值',
+            },
+          });
         }
-      }
-    );
 
-    res.json({
-      success: true,
-      data: {
-        success: result.modifiedCount,
-        failed: ids.length - result.modifiedCount,
-      },
-      message: '批量更新任务状态成功',
-      timestamp: Date.now(),
-      requestId: req.id,
-    });
+        result = await Task.updateMany(
+          {
+            _id: { $in: taskIds },
+            user: req.user?.id,
+          },
+          {
+            status: data.status,
+            ...(data.status === 'completed' ? { completedAt: new Date() } : {}),
+          }
+        );
+
+        res.json({
+          success: true,
+          data: {
+            modifiedCount: result.modifiedCount,
+          },
+        });
+        break;
+
+      case 'delete':
+        result = await Task.deleteMany({
+          _id: { $in: taskIds },
+          user: req.user?.id,
+        });
+
+        res.json({
+          success: true,
+          data: {
+            deletedCount: result.deletedCount,
+          },
+        });
+        break;
+
+      default:
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: '不支持的操作类型',
+          },
+        });
+    }
   } catch (error) {
-    next(error);
-  }
-};
-
-// 批量删除任务
-export const batchDeleteTasks: RequestHandler = async (req, res, next) => {
-  try {
-    const { ids } = req.body;
-    const result = await Task.deleteMany({
-      _id: { $in: ids },
-      user: req.user?.id,
-    });
-
-    res.json({
-      success: true,
-      data: {
-        success: result.deletedCount,
-        failed: ids.length - result.deletedCount,
-      },
-      message: '批量删除任务成功',
-      timestamp: Date.now(),
-      requestId: req.id,
-    });
-  } catch (error) {
+    if (error instanceof mongoose.Error.ValidationError) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: error.message,
+        },
+      });
+    }
     next(error);
   }
 }; 

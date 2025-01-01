@@ -1,5 +1,5 @@
 import { Schema, model, Document, Types } from 'mongoose';
-import { IUser } from './User';
+import { IUser } from '../types/user';
 
 export interface ITask extends Document {
   title: string;
